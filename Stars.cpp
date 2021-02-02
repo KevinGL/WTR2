@@ -13,6 +13,39 @@
 #include "../sdlglutils/sdlglutils.h"
 #include "../mathutils/mathutils.h"
 
+void WTR2_Sky::InitStars(string pathStars)
+{
+    FILE *fichier=fopen(pathStars.c_str(),"r");     //Chargement fichier contenant paramètres étoiles
+
+    float ascension,declinaison;
+    float eclat,amplitude,frequence;
+    int retour_fscanf;
+    vector<float> ascensions_droites;
+    vector<float> declinaisons;
+    vector<float> brillances;
+    vector<float> amplitudes;
+    vector<float> frequences;
+
+    while(1)
+    {
+        retour_fscanf=fscanf(fichier,"Right ascension : %f | Declination :  %f | Shiness : %f | Amplitude : %f | Frequency : %f\n",&ascension,&declinaison,&eclat,&amplitude,&frequence);
+        if(retour_fscanf<0)
+            break;
+
+        ascensions_droites.push_back(ascension*M_PI/180);
+        declinaisons.push_back(declinaison*M_PI/180);
+        brillances.push_back(eclat);
+        amplitudes.push_back(amplitude);
+        frequences.push_back(frequence);
+    }       //Lecture fichier
+
+    fclose(fichier);
+
+    stars.Init(ascensions_droites,declinaisons,brillances,amplitudes,frequences);       //Initalisation instances et VBO
+
+    chrono=SDL_GetTicks();
+}
+
 int WTR2_Stars::getNbStars(void)
 {
     return right_asc.size();
@@ -20,7 +53,7 @@ int WTR2_Stars::getNbStars(void)
 
 void WTR2_Stars::Init(vector<float> &r,vector<float> &d,vector<float> &s,vector<float> &a,vector<float> &f)
 {
-    right_asc=r;        //Ascensions droites, déclinaisons, éclats, amplitudes de scintillement, fréquences de scintillement
+    right_asc=r;
     declinations=d;
     shinings=s;
     amplitudes=a;
@@ -31,7 +64,7 @@ void WTR2_Stars::Init(vector<float> &r,vector<float> &d,vector<float> &s,vector<
     float coordVertices[2*3*3];     //Un carré de deux triangles de trois vertices de trois coordonnées chacun
     float coordTextures[2*3*2];
 
-    coordVertices[0]=0.0;                   //Calcul coordonnées sommets
+    coordVertices[0]=0.0;               //Calcul coordonnées vertices d'une instance
     coordVertices[1]=WTR2_SIZE_STARS/2;
     coordVertices[2]=-WTR2_SIZE_STARS/2;
 
@@ -57,7 +90,7 @@ void WTR2_Stars::Init(vector<float> &r,vector<float> &d,vector<float> &s,vector<
 
     ///////////////////////////////////////////
 
-    coordTextures[0]=0.0;
+    coordTextures[0]=0.0;       //Coordonnées texture
     coordTextures[1]=0.0;
 
     coordTextures[2]=0.0;
@@ -77,7 +110,7 @@ void WTR2_Stars::Init(vector<float> &r,vector<float> &d,vector<float> &s,vector<
 
     ///////////////////////////////////////////
 
-    glGenVertexArrays(1,&VAO);          //Mise en mémoire vidéo
+    glGenVertexArrays(1,&VAO);      //Initialisation VBO
     glGenBuffers(1,&bufferVRAM);
 
     glBindVertexArray(VAO);
@@ -114,7 +147,7 @@ void WTR2_Stars::Init(vector<float> &r,vector<float> &d,vector<float> &s,vector<
     glVertexAttribPointer(6,1,GL_FLOAT,GL_FALSE,sizeof(float),(void*)(2*3*3*sizeof(float)+2*3*2*sizeof(float)+right_asc.size()*sizeof(float)+declinations.size()*sizeof(float)+shinings.size()*sizeof(float)+amplitudes.size()*sizeof(float)));
     glEnableVertexAttribArray(6);
 
-    glVertexAttribDivisor(2,1);     //Paramètres instanciation
+    glVertexAttribDivisor(2,1);
     glVertexAttribDivisor(3,1);
     glVertexAttribDivisor(4,1);
     glVertexAttribDivisor(5,1);
@@ -124,6 +157,31 @@ void WTR2_Stars::Init(vector<float> &r,vector<float> &d,vector<float> &s,vector<
     glBindBuffer(GL_ARRAY_BUFFER,0);
 
     texture=loadTexture("Mini-libs/wtr2utils/Stars.tga",0);     //Chargement texture
+}
+
+void WTR2_Sky::DrawStars(const float xCam,const float yCam,const float zCam,const float radiusSky,glm::mat4 projection,glm::mat4 modelview)
+{
+    glDisable(GL_DEPTH_TEST);       //Désactivation Z-buffer
+
+    const float hauteurSoleil=sun.getPos()[2];
+    const float ratioStars=-0.1;
+
+    const float pente=-1.0/(0.0-ratioStars*sun.getMax());
+    float opacite;
+
+    if(hauteurSoleil>=ratioStars*sun.getMax()&&hauteurSoleil<=0.0)      //Calcul opacité selon hauteur Soleil
+        opacite=pente*hauteurSoleil;
+    else
+    if(hauteurSoleil<ratioStars*sun.getMax())
+        opacite=1.0;
+    else
+        opacite=0.0;
+
+    const float variable=(SDL_GetTicks()-chrono)/1000.0;
+
+    stars.Draw(xCam,yCam,zCam,opacite,variable,radiusSky,shaderStars,projection,modelview);     //Rendu
+
+    glEnable(GL_DEPTH_TEST);
 }
 
 void WTR2_Stars::Draw(const float xCam,const float yCam,const float zCam,const float opacity,const float var,const float radiusSky,const GLuint shader,glm::mat4 projection,glm::mat4 modelview)

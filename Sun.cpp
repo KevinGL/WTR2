@@ -15,17 +15,17 @@
 
 void WTR2_Sun::Init(const float Speed,float hour,int day,int month,double latitude,WTR2_Color colNorm,WTR2_Color colSunset,const int wWindow,const int hWindow)
 {
-    speed=Speed;            //Vitesse défilement journée
-    colorNormal=colNorm;    //Couleur normale
-    colorSunset=colSunset;  //Couleur au coucher
+    speed=Speed;
+    colorNormal=colNorm;
+    colorSunset=colSunset;
 
     angleH_Init=-(hour/24.0)*360.0;
 
+    //Calcul paramètres orbite Soleil selon date, heure et latitude
     const float largHorizon=10.0;
     const double obliquite=23.0;
 
-    //heightOrbit=largHorizon*sin(obliquite*M_PI/180);
-    const float hautMax=largHorizon*sin(obliquite*M_PI/180);        //Calcul orbite
+    const float hautMax=largHorizon*sin(obliquite*M_PI/180);
 
     int nbJours[12]={31,28,31,30,31,30,31,31,30,31,30,31};
     int compteur=0,date=0;
@@ -44,49 +44,72 @@ void WTR2_Sun::Init(const float Speed,float hour,int day,int month,double latitu
     }
 
     const float pulsation=(2*M_PI)/365.0;
-    const int variable=date+10;             //Calcul date en jours
+    const int variable=date+10;
 
     heightOrbit=-hautMax*cos(pulsation*variable);
 
-    radiusOrbit=largHorizon*cos(obliquite*M_PI/180);        //Rayon orbite
+    radiusOrbit=largHorizon*cos(obliquite*M_PI/180);
 
-    angleV=90-latitude;     //Inclinaison orbite
+    angleV=90.0-latitude;
 
     ////////////////////////////////////////////////////////////////////////
 
-    const float distance=1.0;
-    const double diametreApparent=100.0;//20.0;//0.5;
-    const float rayon=distance*tan((diametreApparent/2)*M_PI/180);      //Calcul rayon
+    vector<Transform> transf;
+    Transform t;
 
-    vbo.coordVertices.push_back(0.0);       //Calcul coordonnées sommets
-    vbo.coordVertices.push_back(rayon);
-    vbo.coordVertices.push_back(-rayon);
+    t.translate.x=0.0;
+    t.translate.y=0.0;
+    t.translate.z=heightOrbit;
+    t.type=TYPE_TRANSF_TRANSLATE;
+    transf.push_back(t);
+
+    t.translate.x=radiusOrbit;
+    t.translate.y=0.0;
+    t.translate.z=0.0;
+    t.type=TYPE_TRANSF_TRANSLATE;
+    transf.push_back(t);
+
+    glm::mat4 matriceTransformation=getMatrixtransformation(transf);        //Calcul position Soleil par rapport à la caméra
+
+    glm::vec4 pos=glm::vec4(0.0,0.0,0.0,1.0)*matriceTransformation;
+
+    ////////////////////////////////////////////////////////////////////////
+
+    const float distance=sqrt(pow(pos.x,2)+pow(pos.y,2)+pow(pos.z,2));      //Calcul largeurs apparentes
+    const double diametreApparentTotal=20.0;//0.5;
+    const double diametreApparent=0.5;
+    const float largMax=distance*tan((diametreApparentTotal/2)*M_PI/180);
+    const float rayon=distance*tan((diametreApparent/2)*M_PI/180);
+
+    vbo.coordVertices.push_back(0.0);       //Calcul coordonnées vertices
+    vbo.coordVertices.push_back(largMax);
+    vbo.coordVertices.push_back(-largMax);
 
     vbo.coordVertices.push_back(0.0);
-    vbo.coordVertices.push_back(rayon);
-    vbo.coordVertices.push_back(rayon);
+    vbo.coordVertices.push_back(largMax);
+    vbo.coordVertices.push_back(largMax);
 
     vbo.coordVertices.push_back(0.0);
-    vbo.coordVertices.push_back(-rayon);
-    vbo.coordVertices.push_back(-rayon);
+    vbo.coordVertices.push_back(-largMax);
+    vbo.coordVertices.push_back(-largMax);
 
     //////////////////
 
     vbo.coordVertices.push_back(0.0);
-    vbo.coordVertices.push_back(-rayon);
-    vbo.coordVertices.push_back(-rayon);
+    vbo.coordVertices.push_back(-largMax);
+    vbo.coordVertices.push_back(-largMax);
 
     vbo.coordVertices.push_back(0.0);
-    vbo.coordVertices.push_back(rayon);
-    vbo.coordVertices.push_back(rayon);
+    vbo.coordVertices.push_back(largMax);
+    vbo.coordVertices.push_back(largMax);
 
     vbo.coordVertices.push_back(0.0);
-    vbo.coordVertices.push_back(-rayon);
-    vbo.coordVertices.push_back(rayon);
+    vbo.coordVertices.push_back(-largMax);
+    vbo.coordVertices.push_back(largMax);
 
     //////////////////////////////////////
 
-    vbo.coordTex.push_back(0.0);
+    vbo.coordTex.push_back(0.0);            //Coordonnées texture
     vbo.coordTex.push_back(0.0);
 
     vbo.coordTex.push_back(0.0);
@@ -108,11 +131,11 @@ void WTR2_Sun::Init(const float Speed,float hour,int day,int month,double latitu
 
     //////////////////////////////////////
 
-    createTex(wWindow,hWindow);         //Création texture par FBO
+    createTex(wWindow,hWindow,rayon);       //Création texture par FBO
 
     //////////////////////////////////////
 
-    glGenBuffers(1,&vbo.bufferVRAM);       //Mise en mémoire VRAM
+    glGenBuffers(1,&vbo.bufferVRAM);        //Création VBO
     glGenVertexArrays(1,&vbo.VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER,vbo.bufferVRAM);
@@ -136,24 +159,24 @@ void WTR2_Sun::Init(const float Speed,float hour,int day,int month,double latitu
 
     shader=SHD_LoadShaders("Mini-libs/wtr2utils/shaderSun.");       //Chargement shader
 
-    chrono=SDL_GetTicks();      //Lancement chrono
+    chrono=SDL_GetTicks();      //Chrono
 }
 
-void WTR2_Sun::createTex(const int wWindow,const int hWindow)
+void WTR2_Sun::createTex(const int wWindow,const int hWindow,const float rayon)
 {
-    GLuint FBO;                 //Initialisation FBO
+    GLuint FBO;
     glGenFramebuffers(1,&FBO);
-    glBindFramebuffer(GL_FRAMEBUFFER,FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER,FBO);      //Création FBO
 
-    GLuint tex;                 //Initialisation texture
+    GLuint tex;
     glGenTextures(1,&tex);
-    glBindTexture(GL_TEXTURE_2D,tex);
+    glBindTexture(GL_TEXTURE_2D,tex);       //Création texture
 
-    glFramebufferTexture(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,tex,0);        //Attachement texture-rendu
+    glFramebufferTexture(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,tex,0);        //Attachement texture-FBO
 
     glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,wWindow,hWindow,0,GL_RGBA,GL_UNSIGNED_BYTE,NULL);      //Allocation mémoire texture
 
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);        //Paramètres texture
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
 
     glBindFramebuffer(GL_FRAMEBUFFER,0);
@@ -162,12 +185,10 @@ void WTR2_Sun::createTex(const int wWindow,const int hWindow)
     if(status!=GL_FRAMEBUFFER_COMPLETE)
         printf("Error frame buffer : 0x%x\n",status);
 
-    //Dessin texture
-
-    const float baseTriangles=0.1;
-    const int hauteurMin=5;
+    const float baseTriangles=0.1;          //Calcul aspect Soleil
+    const int hauteurMin=50;
     const int hauteurMax=100;
-    const int nbTriangles=200;
+    const int nbTriangles=50;
     const float alpha=360.0/nbTriangles;
     double angle=0.0;
 
@@ -227,12 +248,12 @@ void WTR2_Sun::createTex(const int wWindow,const int hWindow)
             break;
     }
 
-    GLuint shaderCreate=SHD_LoadShaders("Mini-libs/wtr2utils/shaderCreateSun.");        //Chargement shader affichage FBO
+    GLuint shaderCreate=SHD_LoadShaders("Mini-libs/wtr2utils/shaderCreateSun.");        //Chargement shader de rendu
 
     GLuint VBO_create,VAO_create;
 
-    glGenBuffers(1,&VBO_create);            //Mise en mémoire vidéo
-    glGenVertexArrays(1,&VAO_create);
+    glGenBuffers(1,&VBO_create);
+    glGenVertexArrays(1,&VAO_create);       //Création VBO
 
     glBindBuffer(GL_ARRAY_BUFFER,VBO_create);
     glBindVertexArray(VAO_create);
@@ -245,21 +266,24 @@ void WTR2_Sun::createTex(const int wWindow,const int hWindow)
     glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,2*sizeof(float),(void*)0);
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1,4,GL_FLOAT,GL_FALSE,4*sizeof(float),(void*)(nbTriangles*3*2*sizeof(float)));
-    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(3,4,GL_FLOAT,GL_FALSE,4*sizeof(float),(void*)(nbTriangles*3*2*sizeof(float)));
+    glEnableVertexAttribArray(3);
 
     glBindBuffer(GL_ARRAY_BUFFER,0);
     glBindVertexArray(0);
 
     glBindFramebuffer(GL_FRAMEBUFFER,0);
 
-    /////////////////////////////////////////
+    PRIM_Solid disque;
+
+    disque.InitDisk(0.0,rayon,40);      //Disque central
+
+    //////////////////////////////////////////////////////////////////////////////////
 
     glDisable(GL_DEPTH_TEST);
 
     glBindFramebuffer(GL_FRAMEBUFFER,FBO);
     glClearColor(1.0,1.0,1.0,0.0);
-    //glClearColor(1.0,0.0,0.0,1.0);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glBindVertexArray(VAO_create);
@@ -267,9 +291,11 @@ void WTR2_Sun::createTex(const int wWindow,const int hWindow)
 
     glUseProgram(shaderCreate);
 
-    glDrawArrays(GL_TRIANGLES,0,nbTriangles*3);     //Rendu dans la texture
+    glDrawArrays(GL_TRIANGLES,0,nbTriangles*3);     //Rendu dans texture
 
     glBindVertexArray(0);
+
+    disque.Draw(shaderCreate);
 
     glBindFramebuffer(GL_FRAMEBUFFER,0);
     glBindTexture(GL_TEXTURE_2D,0);
@@ -292,11 +318,6 @@ float WTR2_Sun::getMin(void)
 float WTR2_Sun::getMax(void)
 {
     return zMax;
-}
-
-WTR2_Color WTR2_Sun::getColor(void)
-{
-    return color;
 }
 
 WTR2_Color WTR2_Sun::getColorNormal(void)
@@ -334,12 +355,12 @@ float WTR2_Sun::getRadiusOrbit(void)
     return radiusOrbit;
 }
 
-void WTR2_Sun::Draw(const float xCam,const float yCam,const float zCam,glm::mat4 projection,glm::mat4 modelview)
+void WTR2_Sun::Draw(const float xCam,const float yCam,const float zCam,const float ratioSunset,glm::mat4 projection,glm::mat4 modelview)
 {
-    glDisable(GL_DEPTH_TEST);       //Désactivation test de profondeur
+    glDisable(GL_DEPTH_TEST);
 
-    const double heuresEcoulees=(SDL_GetTicks()-chrono)/3600000.0;      //Conversion chrono
-    angleH=angleH_Init-speed*(heuresEcoulees/24.0)*360.0;               //Calcul position selon heure
+    const double heuresEcoulees=(SDL_GetTicks()-chrono)/3600000.0;
+    angleH=angleH_Init-speed*(heuresEcoulees/24.0)*360.0;
 
     float posCentreCercle[3];
 
@@ -352,39 +373,11 @@ void WTR2_Sun::Draw(const float xCam,const float yCam,const float zCam,glm::mat4
     pos[2]=posCentreCercle[2]-(radiusOrbit*sin(angleV*M_PI/180))*cos(angleH*M_PI/180);
 
     zMax=posCentreCercle[2]-(radiusOrbit*sin(angleV*M_PI/180))*cos(180.0*M_PI/180);
-    zMin=posCentreCercle[2]-(radiusOrbit*sin(angleV*M_PI/180))*cos(0.0*M_PI/180);       //Calcul paramètres orbite
-
-    float pente[3];
-
-    pente[0]=(colorNormal.R-colorSunset.R)/(0.1*zMax);      //Calcul couleur selon heure
-    pente[1]=(colorNormal.G-colorSunset.G)/(0.1*zMax);
-    pente[2]=(colorNormal.B-colorSunset.B)/(0.1*zMax);
-
-    if(pos[2]>=0&&pos[2]<0.1*zMax)
-    {
-        color.R=pente[0]*fabs(pos[2])+colorSunset.R;
-        color.G=pente[1]*fabs(pos[2])+colorSunset.G;
-        color.B=pente[2]*fabs(pos[2])+colorSunset.B;
-    }
-
-    else
-    if(pos[2]>=0.1*zMax)
-    {
-        color.R=colorNormal.R;
-        color.G=colorNormal.G;
-        color.B=colorNormal.B;
-    }
-
-    else
-    {
-        color.R=colorSunset.R;
-        color.G=colorSunset.G;
-        color.B=colorSunset.B;
-    }
+    zMin=posCentreCercle[2]-(radiusOrbit*sin(angleV*M_PI/180))*cos(0.0*M_PI/180);       //Calcul coordonnées cartésiennes et valeux extremes
 
     glUseProgram(shader);
 
-    vector<Transform> transf;       //Transformations géométriques
+    vector<Transform> transf;
     Transform t;
 
     t.translate.x=xCam;
@@ -417,72 +410,23 @@ void WTR2_Sun::Draw(const float xCam,const float yCam,const float zCam,glm::mat4
 
     glm::mat4 matriceTransf=getMatrixtransformation(transf);        //Calcul matrice de transformation
 
-    glUniformMatrix4fv(glGetUniformLocation(shader,"transformation"),1,false,glm::value_ptr(matriceTransf));      //Envoi matrices au shader
+    glUniformMatrix4fv(glGetUniformLocation(shader,"transformation"),1,false,glm::value_ptr(matriceTransf));
     glUniformMatrix4fv(glGetUniformLocation(shader,"projection"),1,false,glm::value_ptr(projection));
     glUniformMatrix4fv(glGetUniformLocation(shader,"modelview"),1,false,glm::value_ptr(modelview));
 
-    glUniform3f(glGetUniformLocation(shader,"color"),color.R,color.G,color.B);      //Envoi couleur au shader
+    glUniform1f(glGetUniformLocation(shader,"hauteur"),pos[2]);
+    glUniform1f(glGetUniformLocation(shader,"hauteurMax"),zMax);
+    glUniform1f(glGetUniformLocation(shader,"rapportSunset"),ratioSunset);
+    glUniform3f(glGetUniformLocation(shader,"colorSunset"),colorSunset.R,colorSunset.G,colorSunset.B);
+    glUniform3f(glGetUniformLocation(shader,"colorNormal"),colorNormal.R,colorNormal.G,colorNormal.B);
 
     glBindTexture(GL_TEXTURE_2D,vbo.textures[0]);
 
     glBindVertexArray(vbo.VAO);
 
-    glDrawArrays(GL_TRIANGLES,0,vbo.coordVertices.size()/3);        //Rendu Soleil
+    glDrawArrays(GL_TRIANGLES,0,vbo.coordVertices.size()/3);        //Rendu
 
     glBindVertexArray(0);
 
     glEnable(GL_DEPTH_TEST);
-}
-
-void WTR2_calculPosSun(float *posSun1,float *posSun2)
-{
-    MTH_Sphere sphere;
-
-    sphere.center.X=0.0;            //Caméra
-    sphere.center.Y=0.0;
-    sphere.center.Z=0.0;
-
-    sphere.radius=WTR2_RADIUS_SKY;
-
-    MTH_Vector vecteur;
-
-    vecteur.X=posSun1[0]-0.0;
-    vecteur.Y=posSun1[1]-0.0;
-    vecteur.Z=posSun1[2]-0.0;
-
-    MTH_RightSpace droite;
-
-    droite.A.X=0.0;            //Caméra
-    droite.A.Y=0.0;
-    droite.A.Z=0.0;
-
-    droite.V.X=vecteur.X;
-    droite.V.Y=vecteur.Y;
-    droite.V.Z=vecteur.Z;
-
-    vector<MTH_Vertex> solutions;
-
-    MTH_CalculInterRight_Sphere(&sphere,&droite,solutions);
-
-    MTH_Vector vecteur2;
-
-    if(solutions.size()!=0)
-    {
-        vecteur2.X=solutions[0].X-0.0;
-        vecteur2.Y=solutions[0].Y-0.0;
-        vecteur2.Z=solutions[0].Z-0.0;
-
-        if(vecteur2.X*vecteur.X+vecteur2.Y*vecteur.Y+vecteur2.Z*vecteur.Z>0)        //Produit scalaire
-        {
-            posSun2[0]=solutions[0].X;
-            posSun2[1]=solutions[0].Y;
-            posSun2[2]=solutions[0].Z;
-        }
-        else
-        {
-            posSun2[0]=solutions[1].X;
-            posSun2[1]=solutions[1].Y;
-            posSun2[2]=solutions[1].Z;
-        }
-    }
 }

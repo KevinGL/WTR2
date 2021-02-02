@@ -15,20 +15,20 @@
 #define WTR2_Y_MAX_DROPS 6.0
 #define WTR2_RADIUS_MAX_DROPS 5.0
 
-#define WTR2_WIDTH_LIGHTNING 5.0
+#define WTR2_WIDTH_LIGHTNING 8.0//5.0
 #define WTR2_WIDTH_LIGHTNING_H 3.2*WTR2_WIDTH_LIGHTNING
 #define WTR2_WIDTH_LIGHTNING_BRANCH 2.5
 #define WTR2_WIDTH_LIGHTNING_BRANCH_H 3.2*WTR2_WIDTH_LIGHTNING
 #define WTR2_ANGLE_MAX_LIGHTNING 90.0
 #define WTR2_HEIGHT_MAX_LIGHTNING 1000.0
-#define WTR2_MIN_SEG_TRACER_LIGHTNING 30.0
-#define WTR2_MAX_SEG_TRACER_LIGHTNING 50.0
+#define WTR2_MIN_SEG_TRACER_LIGHTNING 15.0
+#define WTR2_MAX_SEG_TRACER_LIGHTNING 25.0
 #define WTR2_MIN_SEG_BRANCH_LIGHTNING 15.0
 #define WTR2_MAX_SEG_BRANCH_LIGHTNING 25.0
 /*#define WTR2_COLOR_R_LIGHTNING 1.0
 #define WTR2_COLOR_G_LIGHTNING 222.0/255//1.0
 #define WTR2_COLOR_B_LIGHTNING 222.0/255//1.0*/
-#define WTR2_OPACITY_INT_LIGHTNING 0.5
+#define WTR2_OPACITY_INT_LIGHTNING 1.0//0.5
 #define WTR2_OPACITY_EXT_LIGHTNING 0.0
 #define WTR2_ANGLE_BRANCH_LIGHTNING_UP 60.0
 #define WTR2_ANGLE_BRANCH_LIGHTNING_DOWN (90.0+20.0+20.0)
@@ -47,7 +47,7 @@
 #define WTR2_DURATION_LIGHTNING_WINK 1000
 #define WTR2_PERIOD_LIGHTNING_WINK 10
 
-#define WTR2_RADIUS_SKY 2.0
+//#define WTR2_RADIUS_SKY 2.0
 
 #define WTR2_SIZE_STARS 0.01
 
@@ -169,14 +169,14 @@ class WTR2_Sun
     float zMax;
     WTR2_Color colorSunset;
     WTR2_Color colorNormal;
-    WTR2_Color color;
+    //WTR2_Color color;
     WTR2_VBO vbo;
     GLuint shader;
 
     public :
 
     void Init(const float Speed,float hour,int day,int month,double latitude,WTR2_Color colNorm,WTR2_Color colSunset,const int wWindow,const int hWindow);
-    void Draw(const float xCam,const float yCam,const float zCam,glm::mat4 projection,glm::mat4 modelview);
+    void Draw(const float xCam,const float yCam,const float zCam,const float ratioSunset,glm::mat4 projection,glm::mat4 modelview);
     float* getPos(void);
     float getMin(void);
     float getMax(void);
@@ -184,10 +184,10 @@ class WTR2_Sun
     double getAngleV(void);
     float getHeightOrbit(void);
     float getRadiusOrbit(void);
-    WTR2_Color getColor(void);
+    //WTR2_Color getColor(void);
     WTR2_Color getColorNormal(void);
     WTR2_Color getColorSunset(void);
-    void createTex(const int wWindow,const int hWindow);
+    void createTex(const int wWindow,const int hWindow,const float rayon);
 };
 
 class WTR2_Rain
@@ -215,7 +215,7 @@ class WTR2_Rain
 
     void Init(WTR2_Rainfall rainfall_Init,WTR2_FrequencyRainbows rainbows_Init,WTR2_FrequencyStorms storms_Init,const float radiusLght,const float radiusRB,const int periodeVar=1000);
     //void Draw(const int largFenetre,const int hautFenetre,glm::vec3 posCam,glm::vec3 targetCam,WTR2_Sun *sun,const GLuint shaderApp=0,const bool intern=false);
-    void Draw(const int largFenetre,const int hautFenetre,glm::vec3 posCam,WTR2_Sun *sun,const GLuint shaderApp=0,const bool intern=false);
+    void Draw(glm::vec3 posCam,WTR2_Sun *sun,glm::mat4 projection,glm::mat4 modelview,const bool intern);
     void DrawClouds(const float radiusClouds,const float X=0,const float Y=0,const float Z=0);
     void InitLightning(void);
     void ReinitLightning(void);
@@ -225,7 +225,7 @@ class WTR2_Rain
     void InitTracerLightning(vector<WTR2_Vertex> &structure,WTR2_Color color);
     void InitTopLightning(const float xTop,const float yTop,const float zTop,WTR2_Color color);
     void InitBranchingLightning(const float xPoint,const float yPoint,const float zPoint,const float width_init,const float width_init_h,WTR2_Color color,const int level);
-    void DrawLightning(const float xCam,const float yCam);
+    void DrawLightning(const float xCam,const float yCam,glm::mat4 projection,glm::mat4 modelview);
     void varyingRain(void);
     void InitRainbow(const float radius);
     //void DrawRainbow(glm::vec3 posCam,glm::vec3 targetCam,WTR2_Sun *sun);
@@ -292,6 +292,8 @@ class WTR2_Sky
     GLuint shaderStars;
     PRIM_Solid sphere;
     WTR2_Sun sun;
+    static float radiusSky;
+    static float ratioSunset;
 
     public :
 
@@ -327,4 +329,4 @@ class WTR2_Wind
 void WTR2_MatrixRotate(float *X,float *Y,float *Z,double angle,glm::vec3 axis);
 void WTR2_Normalize(WTR2_Vertex *vect);
 double WTR2_calculAngle(const double *pos1,const double *pos2);
-void WTR2_calculPosSun(float *posSun1,float *posSun2);
+void WTR2_calculPosSun(float *posSun1,float *posSun2,const float radiusSky);
